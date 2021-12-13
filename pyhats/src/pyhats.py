@@ -2,6 +2,9 @@ import redis
 import logging
 import random
 
+import datetime
+import ipaddress
+
 # Redis tutorial @ https://realpython.com/python-redis
 
 # PyHats.com Example
@@ -93,3 +96,30 @@ def test_purchase_all():
 def test_purchase_another():
     r = redis.Redis(db=1)
     buyitem(r, "hat:56854717")
+
+class IPBlackList:
+    def __init__(self, maxvisits: int):
+        self._blacklist = set()
+        self._MAXVISITS = maxvisits
+
+class IPWatcher(IPBlackList):
+    def __init__(self, r: redis.Redis):
+        super().__init__(maxvisits=15)
+        self.watcher = r
+
+    def watch(self):
+        while True:
+            _, addr = self.watcher.blpop("ips")
+            addr = ipaddress.ip_address(addr.decode("utf-8"))
+            now = datetime.datetime.utcnow()
+            addr_ts = f"{addr}:{now.minute}"
+
+            n = self.watcher.incrby(addr_ts, 1)
+            if addr in self._blacklist:
+                print("Blacklisted Bot Detected! {}".format(addr))
+            elif n >= self._MAXVISITS:
+                print("Bot Detected!: {}".format(addr))
+                self._blacklist.add(addr)
+            else:
+                print(f"{now}:  saw {addr}")
+                _ = self.watcher.expire(addr_ts, 60)

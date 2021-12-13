@@ -10,5 +10,10 @@ def main():
     # pyhats.test_purchase_another()
     redis_test.key_expiry()
 
+    #
+    r = redis.Redis(db=5)
+    watcher = pyhats.IPWatcher(r)
+    watcher.watch()
+
 if __name__ == "__main__":
     main()
